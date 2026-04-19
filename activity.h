@@ -1,3 +1,5 @@
+#ifndef ACTIVITY_H
+#define ACTIVITY_H
 #include "card.h"
 #include "gamestate.h"
 #include "playerstate.h"
@@ -11,3 +13,5 @@ void apply_add_to_hand(int card, GameState& state); // 从 deck_main 检索 card
 bool can_summon_extra_X(int card, const GameState& state); // 从额外卡组 特殊召唤 card
 
 void apply_special_summon_extra(int card, GameState& state); // 特殊召唤 card
+
+#endif

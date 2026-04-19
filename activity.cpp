@@ -1,57 +1,106 @@
+#include "activity.h"
 #include <algorithm>
 #include <vector>
+
+// 辅助函数：检查手卡是否有指定卡（排除指定卡）
+bool hand_has_other(const GameState& state, int exclude_card) {
+    for (int c : state.player.hand) {
+        if (c != exclude_card && (c == 1 || c == 2 || c == 3)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// 辅助函数：检查手卡是否有任意1、2、3
+bool hand_has_123(const GameState& state) {
+    for (int c : state.player.hand) {
+        if (c == 1 || c == 2 || c == 3) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// 辅助函数：检查墓地是否有任意1、2、3
+bool graveyard_has_123(const GameState& state) {
+    for (int c : state.player.graveyard) {
+        if (c == 1 || c == 2 || c == 3) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// 辅助函数：检查卡是否在场
+bool is_on_field(int card, const GameState& state) {
+    return std::find(state.player.field.begin(), state.player.field.end(), card) != state.player.field.end();
+}
 
 bool can_activate(int card, const GameState& state)
 {
     switch(card) {
         case 1: {
-            auto it = std::find(state.player.hand.begin(), state.player.hand.end(), 1);
-            bool found_1 = (it != state.player.hand.end());
-            it = std::find(state.player.hand.begin(), state.player.hand.end(), 2);
-            bool found_2 = (it != state.player.hand.end());
-            it = std::find(state.player.hand.begin(), state.player.hand.end(), 3);
-            bool found_3 = (it != state.player.hand.end());
-            return found_1 || found_2 || found_3;
+            // 卡1：在场上时可发动，消耗通常召唤，手卡需有其他1/2/3
+            return is_on_field(1, state) && 
+                   state.player.normal_summon_used == 0 && 
+                   hand_has_other(state, 1);
         }
         case 2: {
-            auto it = std::find(state.player.graveyard.begin(), state.player.graveyard.end(), 1);
-            bool found_1 = (it != state.player.graveyard.end());
-            it = std::find(state.player.graveyard.begin(), state.player.graveyard.end(), 2);
-            bool found_2 = (it != state.player.graveyard.end());
-            it = std::find(state.player.graveyard.begin(), state.player.graveyard.end(), 3);
-            bool found_3 = (it != state.player.graveyard.end());
-            return found_1 || found_2 || found_3;
+            // 卡2：在手卡时可发动，手卡需有除他以外的1/2/3
+            auto it = std::find(state.player.hand.begin(), state.player.hand.end(), 2);
+            return it != state.player.hand.end() && hand_has_other(state, 2);
         }
         case 3: {
-            auto it = std::find(state.player.hand.begin(), state.player.hand.end(), 1);
-            bool found_1 = (it != state.player.hand.end());
-            it = std::find(state.player.hand.begin(), state.player.hand.end(), 2);
-            bool found_2 = (it != state.player.hand.end());
-            it = std::find(state.player.hand.begin(), state.player.hand.end(), 3);
-            bool found_3 = (it != state.player.hand.end());
-            return found_1 || found_2 || found_3;
+            // 卡3：在场上时可发动，消耗通常召唤，墓地需有其他1/2/3
+            return is_on_field(3, state) && 
+                   state.player.normal_summon_used == 0 && 
+                   graveyard_has_123(state);
         }
+        // 卡4、5：效果为空，不参与运算
+        case 4: case 5:
         default:
             return false;
     }
 }
 
 void apply_special_summon(int card, GameState& state){
-    // special summon from hand
-    state.player.hand.erase(
-        std::remove(state.player.hand.begin(), state.player.hand.end(), card),
-        state.player.hand.end()
-    );
-    state.player.field.push_back(card);
+    switch(card) {
+        case 1: {
+            // 卡1：在场上发动，消耗通常召唤，生成一个0
+            state.player.normal_summon_used = 1;
+            state.player.field.push_back(0);
+            break;
+        }
+        case 2: {
+            // 卡2：从手卡特殊召唤自己到场上，生成一个0
+            state.player.hand.erase(
+                std::remove(state.player.hand.begin(), state.player.hand.end(), card),
+                state.player.hand.end()
+            );
+            state.player.field.push_back(card);
+            state.player.field.push_back(0);
+            break;
+        }
+        case 3: {
+            // 卡3：在场上发动，消耗通常召唤，生成一个0
+            state.player.normal_summon_used = 1;
+            state.player.field.push_back(0);
+            break;
+        }
+        default:
+            break;
+    }
 }
 
 void apply_add_to_hand(int card, GameState& state)
 {
-    state.player.deck_main.erase(
-        std::remove(state.player.deck_main.begin(), state.player.deck_main.end(), card),
-        state.player.deck_main.end()
-    );
-    state.player.hand.push_back(card);
+    // 从 deck_main 检索第一张符合条件的卡（不是发动的那张）
+    if (!state.player.deck_main.empty()) {
+        int retrieved = state.player.deck_main.back();
+        state.player.deck_main.pop_back();
+        state.player.hand.push_back(retrieved);
+    }
 }
 
 bool can_summon_extra_X(int card, const GameState& state) {

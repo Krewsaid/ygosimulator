@@ -1,3 +1,5 @@
+#ifndef GAMESTATE_H
+#define GAMESTATE_H
 #include "playerstate.h"
 #include <vector>
 
@@ -13,3 +15,5 @@ struct GameState {
 };
 
 GameState init_game(const Deck& deck);
+
+#endif

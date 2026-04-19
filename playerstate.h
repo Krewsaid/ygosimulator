@@ -1,3 +1,5 @@
+#ifndef PLAYERSTATE_H
+#define PLAYERSTATE_H
 #include <vector>
 
 struct PlayerState {
@@ -10,3 +12,5 @@ struct PlayerState {
 
     int normal_summon_used = 0; //是否使用了通常召唤
 };
+
+#endif

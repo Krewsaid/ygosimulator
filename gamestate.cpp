@@ -1,4 +1,5 @@
 #include "gamestate.h"
+#include <iostream>
 
 GameState init_game(const Deck& deck) {
     GameState state;
@@ -15,6 +16,10 @@ GameState init_game(const Deck& deck) {
         state.player.hand.push_back(state.player.deck_main.back());
         state.player.deck_main.pop_back();
     }
+
+    std::cout << "[初始化] 抽到的手牌: ";
+    for (int card : state.player.hand) std::cout << card << " ";
+    std::cout << "\n";
 
     return state;
 }
