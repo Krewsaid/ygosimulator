@@ -4,5 +4,6 @@
 #include "action.h"
 
 void dfs(GameState& state, std::vector<Action>& path);
+void print_best_combo();
 
 #endif

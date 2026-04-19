@@ -1,4 +1,5 @@
 #include <vector>
+#include <algorithm>
 
 #include "action.h"
 #include "activity.h"
@@ -10,17 +11,30 @@ bool has_available_normal_summon(const GameState& state) {
 
 std::vector<Action> generate_actions(const GameState& state) {
     std::vector<Action> actions;
-    std::vector<Action> normal_summon_actions;  // 需要消耗normal_summon的action
+    std::vector<Action> normal_summon_actions;  // 通常召唤action
+
+    // 通常召唤：优先尝试卡1，然后3（卡2不能通常召唤）
+    if (has_available_normal_summon(state)) {
+        for (int card : {1, 3}) {
+            auto it = std::find(state.player.hand.begin(), state.player.hand.end(), card);
+            if (it != state.player.hand.end()) {
+                normal_summon_actions.push_back({2, card});
+                break;
+            }
+        }
+    }
 
     // 遍历场上（检查卡1、卡3等需要在场上发动的卡）
     for (int card : state.player.field) {
         if (can_activate(card, state)) {
-            // 卡1、卡3需要消耗normal_summon
-            if (card == 1 || card == 3) {
-                normal_summon_actions.push_back({0, card});
-            } else {
-                actions.push_back({0, card});
-            }
+            actions.push_back({0, card});
+        }
+    }
+
+    // 检查额外卡组中可特殊召唤的卡（优先于手牌发动）
+    for (int card : state.player.deck_extra) {
+        if (can_summon_extra_X(card, state)) {
+            actions.push_back({1, card});
         }
     }
 
@@ -31,16 +45,8 @@ std::vector<Action> generate_actions(const GameState& state) {
         }
     }
 
-    // 检查额外卡组中可特殊召唤的卡
-    for (int card : state.player.deck_extra) {
-        if (can_summon_extra_X(card, state)) {
-            actions.push_back({1, card});
-        }
-    }
-
-    // 如果还有可用的normal_summon，优先尝试消耗它的action
-    if (has_available_normal_summon(state) && !normal_summon_actions.empty()) {
-        // 在最前面插入normal_summon action
+    // 通常召唤优先
+    if (!normal_summon_actions.empty()) {
         actions.insert(actions.begin(), normal_summon_actions.begin(), normal_summon_actions.end());
     }
 
@@ -57,6 +63,11 @@ void apply_action(const Action& action, GameState& state) {
         case 1: // extra summon: 额外卡组特殊召唤
             if (can_summon_extra_X(action.card, state)) {
                 apply_special_summon_extra(action.card, state);
+            }
+            break;
+        case 2: // normal summon: 通常召唤
+            if (has_available_normal_summon(state)) {
+                apply_normal_summon(action.card, state);
             }
             break;
         default:

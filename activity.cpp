@@ -37,14 +37,20 @@ bool is_on_field(int card, const GameState& state) {
     return std::find(state.player.field.begin(), state.player.field.end(), card) != state.player.field.end();
 }
 
+// 辅助函数：检查卡效果是否已发动过
+bool is_activated(int card, const GameState& state) {
+    return std::find(state.player.activated_cards.begin(), state.player.activated_cards.end(), card) != state.player.activated_cards.end();
+}
+
 bool can_activate(int card, const GameState& state)
 {
+    // 效果只能发动一次
+    if (is_activated(card, state)) return false;
+
     switch(card) {
         case 1: {
-            // 卡1：在场上时可发动，消耗通常召唤，手卡需有其他1/2/3
-            return is_on_field(1, state) && 
-                   state.player.normal_summon_used == 0 && 
-                   hand_has_other(state, 1);
+            // 卡1：在场上时可发动，手卡需有其他1/2/3
+            return is_on_field(1, state) && hand_has_other(state, 1);
         }
         case 2: {
             // 卡2：在手卡时可发动，手卡需有除他以外的1/2/3
@@ -65,15 +71,29 @@ bool can_activate(int card, const GameState& state)
 }
 
 void apply_special_summon(int card, GameState& state){
+    // 标记该卡效果已发动
+    state.player.activated_cards.push_back(card);
+
     switch(card) {
         case 1: {
-            // 卡1：在场上发动，消耗通常召唤，生成一个0
-            state.player.normal_summon_used = 1;
+            // 卡1：在场上发动，生成一个0
             state.player.field.push_back(0);
             break;
         }
         case 2: {
-            // 卡2：从手卡特殊召唤自己到场上，生成一个0
+            // 卡2：从手卡找一张1/2/3移至墓地，特殊召唤自己和token
+            for (int c : state.player.hand) {
+                if (c != card && (c == 1 || c == 2 || c == 3)) {
+                    // 移至墓地
+                    state.player.hand.erase(
+                        std::remove(state.player.hand.begin(), state.player.hand.end(), c),
+                        state.player.hand.end()
+                    );
+                    state.player.graveyard.push_back(c);
+                    break;
+                }
+            }
+            // 特殊召唤自己和token
             state.player.hand.erase(
                 std::remove(state.player.hand.begin(), state.player.hand.end(), card),
                 state.player.hand.end()
@@ -91,6 +111,19 @@ void apply_special_summon(int card, GameState& state){
         default:
             break;
     }
+}
+
+void apply_normal_summon(int card, GameState& state) {
+    // 通常召唤：从手卡拉到场上，消耗一次通常召唤次数
+    // 卡2不能通常召唤
+    if (card == 2) return;
+    
+    state.player.hand.erase(
+        std::remove(state.player.hand.begin(), state.player.hand.end(), card),
+        state.player.hand.end()
+    );
+    state.player.field.push_back(card);
+    state.player.normal_summon_used = 1;
 }
 
 void apply_add_to_hand(int card, GameState& state)
@@ -125,10 +158,48 @@ bool can_summon_extra_X(int card, const GameState& state) {
 
 void apply_special_summon_extra(int card, GameState& state){
     if(can_summon_extra_X(card, state)) {
-        state.player.field.push_back(card);
+        // 从 deck_extra 特殊召唤
         state.player.deck_extra.erase(
             std::remove(state.player.deck_extra.begin(), state.player.deck_extra.end(), card),
             state.player.deck_extra.end()
         );
+        state.player.field.push_back(card);
+
+        // 送墓素材
+        if(card == 100) {
+            // 需要 1 或 3 和 token 0，送墓素材并只丢弃一个 token
+            bool sent_1_or_3 = false;
+            for (int c : state.player.field) {
+                if((c == 1 || c == 3) && !sent_1_or_3) {
+                    // 移至墓地
+                    state.player.field.erase(
+                        std::remove(state.player.field.begin(), state.player.field.end(), c),
+                        state.player.field.end()
+                    );
+                    state.player.graveyard.push_back(c);
+                    sent_1_or_3 = true;
+                    break;
+                }
+            }
+            // 丢弃一个 token 0（不加入墓地）
+            auto it0 = std::find(state.player.field.begin(), state.player.field.end(), 0);
+            if(it0 != state.player.field.end()) {
+                state.player.field.erase(it0);
+            }
+        }
+        if(card == 101) {
+            // 需要 2 和 token 0，送墓素材并只丢弃一个 token
+            // 移至墓地
+            state.player.field.erase(
+                std::remove(state.player.field.begin(), state.player.field.end(), 2),
+                state.player.field.end()
+            );
+            state.player.graveyard.push_back(2);
+            // 丢弃一个 token 0（不加入墓地）
+            auto it0 = std::find(state.player.field.begin(), state.player.field.end(), 0);
+            if(it0 != state.player.field.end()) {
+                state.player.field.erase(it0);
+            }
+        }
     }
 }

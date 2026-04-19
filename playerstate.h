@@ -11,6 +11,7 @@ struct PlayerState {
     std::vector<int> deck_extra;
 
     int normal_summon_used = 0; //是否使用了通常召唤
+    std::vector<int> activated_cards; //已发动过效果的卡
 };
 
 #endif

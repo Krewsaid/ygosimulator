@@ -14,6 +14,6 @@ struct GameState {
     int depth = 0;   // 当前combo深度（用于限制）
 };
 
-GameState init_game(const Deck& deck);
+GameState init_game(const Deck& deck, unsigned int seed = -1);
 
 #endif

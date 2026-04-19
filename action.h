@@ -4,7 +4,7 @@
 #include "gamestate.h"
 
 struct Action {
-    int type;   // 0: activate, 1: extra summon
+    int type;   // 0: activate, 1: extra summon, 2: normal summon
     int card;
 };
 
